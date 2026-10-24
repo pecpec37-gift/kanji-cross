@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>漢字十字クロス</title>
+<style>
+  :root{
+    --bg:#f6f1e7; --paper:#fffdf8; --ink:#2b2622; --sub:#7a6f63;
+    --accent:#2f6b4f; --accent2:#c2512f; --line:#d9cfbf; --gold:#d9a52b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif}
+  body{min-height:100vh;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:440px;padding:12px 16px 32px}
+  .back{display:inline-block;color:var(--accent);text-decoration:none;font-size:14px;padding:6px 0}
+  h1{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+    font-size:26px;margin:6px 0 2px;text-align:center;letter-spacing:.1em}
+  .lead{text-align:center;color:var(--sub);font-size:13px;margin:0 0 16px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;
+    box-shadow:0 2px 0 rgba(0,0,0,.04)}
+  .hidden{display:none!important}
+
+  /* start */
+  .rule{font-size:14px;line-height:1.8;margin:0 0 14px}
+  .mini{display:grid;grid-template-columns:repeat(3,34px);gap:3px;justify-content:center;margin:8px 0 14px}
+  .mini div{width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+    border-radius:6px;font-size:15px}
+  .mini .k{background:#efe7d8}.mini .q{background:var(--accent);color:#fff;font-weight:bold}
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+  button{font:inherit;border:none;border-radius:12px;padding:14px 8px;font-size:16px;font-weight:bold;
+    cursor:pointer;transition:transform .08s, opacity .2s}
+  button:active{transform:scale(.96)}
+  button:disabled{opacity:.35;cursor:default;transform:none}
+  .b-main{background:var(--accent);color:#fff}
+  .b-hint{background:#f0e3c2;color:#6b4e10}
+  .b-know{background:var(--accent2);color:#fff}
+  .b-ans{background:#e6dfd3;color:var(--ink)}
+  .b-next{background:var(--ink);color:#fff;width:100%;margin-top:12px}
+
+  /* game */
+  .status{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--sub);margin-bottom:8px}
+  .status b{color:var(--ink)}
+  .timer{font-size:22px;font-weight:bold;color:var(--accent);font-variant-numeric:tabular-nums}
+  .timer.warn{color:var(--accent2)}
+  .bar{height:6px;background:#e9e1d3;border-radius:3px;overflow:hidden;margin-bottom:16px}
+  .bar i{display:block;height:100%;width:100%;background:var(--accent);transition:width 1s linear}
+  .bar i.warn{background:var(--accent2)}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:min(78vw,276px);margin:0 auto 14px}
+  .cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:12px;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-size:clamp(40px,12vw,54px)}
+  .cell.k{background:#fff;border:2px solid var(--line)}
+  .cell.c{background:#fbf4e4;border:3px dashed var(--accent);color:var(--accent);font-weight:bold}
+  .cell.c.open{border-style:solid;background:var(--accent);color:#fff;animation:pop .35s}
+  .cell.c.ng{border-color:var(--accent2);background:#fbe9e3}
+  @keyframes pop{0%{transform:scale(.7)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+  .read{text-align:center;font-size:12px;color:var(--sub);margin:-4px 0 14px}
+
+  .msg{min-height:52px;border-radius:10px;padding:10px 12px;font-size:15px;line-height:1.6;margin-bottom:12px;text-align:center}
+  .msg.hint{background:#fbf3dd;border:1px solid #ecd9a3;text-align:left}
+  .msg.ask{background:#fdecE6;border:1px solid #efc3b4}
+  .msg.ok{background:#e4f1ea;border:1px solid #b5d6c3;color:#1f5039}
+  .msg.info{background:#f2eee7;border:1px solid var(--line)}
+  .msg .words{display:block;font-size:14px;color:var(--sub);margin-top:4px}
+  .msg .hl{color:var(--accent2);font-weight:bold;font-size:18px}
+
+  .btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .answer{display:flex;gap:8px;margin-top:10px}
+  .answer input{flex:1;min-width:0;font-size:24px;text-align:center;border:2px solid var(--accent2);
+    border-radius:10px;padding:8px;font-family:inherit;background:#fff}
+  .answer button{padding:8px 14px}
+
+  /* result */
+  .score{text-align:center;font-size:52px;font-weight:bold;color:var(--accent);margin:10px 0 0}
+  .score small{font-size:20px;color:var(--sub)}
+  .rank{text-align:center;font-size:17px;margin:4px 0 16px}
+  .list{font-size:14px;line-height:1.9;max-height:260px;overflow:auto;border-top:1px solid var(--line);padding-top:8px;margin-bottom:12px}
+  .list .o{color:var(--accent);font-weight:bold}.list .x{color:var(--accent2);font-weight:bold}
+  .foot{text-align:center;color:var(--sub);font-size:11px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="https://pecpec37-gift.github.io/portal/">← TomTom TOWNS</a>
+  <h1>漢字十字クロス</h1>
+  <p class="lead">真ん中に入る漢字はなに？</p>
+
+  <!-- スタート画面 -->
+  <section id="start" class="card">
+    <p class="rule">
+      真ん中の□に漢字を1文字入れて、4つの二字熟語を完成させよう。<br>
+      上の字と左の字は「□の前」、右の字と下の字は「□の後ろ」に付きます。<br>
+      制限時間は<b>1問60秒</b>。
+    </p>
+    <div class="mini">
+      <div></div><div class="k">大</div><div></div>
+      <div class="k">化</div><div class="q">？</div><div class="k">校</div>
+      <div></div><div class="k">生</div><div></div>
+    </div>
+    <p class="rule" style="font-size:13px;color:var(--sub);text-align:center;margin-top:-6px">
+      例：大□・化□・□校・□生 → 答えは「学」
+    </p>
+    <div class="modes">
+      <button class="b-main" data-n="10">10問</button>
+      <button class="b-main" data-n="20">20問</button>
+      <button class="b-main" data-n="50">全50問</button>
+    </div>
+  </section>
+
+  <!-- ゲーム画面 -->
+  <section id="game" class="card hidden">
+    <div class="status">
+      <span>第<b id="qNo">1</b>問 / <span id="qTotal">10</span></span>
+      <span>正解 <b id="score">0</b></span>
+      <span class="timer" id="timer">60</span>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+
+    <div class="grid" id="grid">
+      <div></div><div class="cell k" id="cTop"></div><div></div>
+      <div class="cell k" id="cLeft"></div><div class="cell c" id="cCenter">？</div><div class="cell k" id="cRight"></div>
+      <div></div><div class="cell k" id="cBottom"></div><div></div>
+    </div>
+    <p class="read" id="readHelp"></p>
+
+    <div class="msg info" id="msg">ひらめいたら「わかった」を押そう！</div>
+
+    <div class="btns" id="btns">
+      <button class="b-hint" id="btnHint">ヒント</button>
+      <button class="b-know" id="btnKnow">わかった</button>
+      <button class="b-ans" id="btnAns">正解</button>
+    </div>
+
+    <div class="answer hidden" id="answerBox">
+      <input id="ansInput" type="text" maxlength="2" placeholder="漢字1文字" autocomplete="off">
+      <button class="b-know" id="btnCheck">答える</button>
+      <button class="b-ans" id="btnBack">戻る</button>
+    </div>
+
+    <button class="b-next hidden" id="btnNext">次の問題へ</button>
+  </section>
+
+  <!-- 結果画面 -->
+  <section id="result" class="card hidden">
+    <div class="score" id="resScore">0<small> / 10</small></div>
+    <div class="rank" id="resRank"></div>
+    <div class="list" id="resList"></div>
+    <button class="b-main" style="width:100%" id="btnRetry">もう一度あそぶ</button>
+  </section>
+
+  <p class="foot">© TomTom TOWNS</p>
+</div>
+
+<script>
+// [答え, 上, 左, 右, 下, ヒント文]  上□・左□・□右・□下
+const Q = [
+  ["学","大","化","校","生","放課後、図書室で友だちと一緒に宿題を広げ、苦手な数学の問題をみんなで教え合いながら解いていった。"],
+  ["水","海","香","道","着","暑い日に外で運動をするときは、のどがかわく前からこまめに水を飲んで、熱中症にならないよう気をつけよう。"],
+  ["花","開","生","火","束","春の公園を散歩していると、あちこちで色とりどりの花が咲いていて、ミツバチが忙しそうに飛び回っていた。"],
+  ["手","選","拍","紙","術","お母さんが作ってくれたお弁当を食べる前に、せっけんを使って手をていねいに洗い、ハンカチでふいた。"],
+  ["本","日","絵","音","棚","雨の日曜日は出かけずに、お気に入りのソファに座って、図書館で借りてきた本をゆっくり読んで過ごした。"],
+  ["風","台","和","鈴","船","秋の夕方、窓を少し開けておくと涼しい風が部屋に入ってきて、カーテンがふわりとやさしく揺れていた。"],
+  ["心","安","中","配","臓","遠くに引っ越してしまった友だちに、元気でいるかなと思いながら心をこめて長い手紙を書いて送った。"],
+  ["物","名","荷","語","騒","家族で動物園に出かけ、大人気のパンダやゾウを見たあと、売店でキリンのぬいぐるみを買ってもらった。"],
+  ["天","晴","雨","気","才","七夕の夜、空を見上げると天の川がはっきりと見えて、おりひめとひこぼしの話を祖父が聞かせてくれた。"],
+  ["山","登","火","頂","道","夏休みに家族でキャンプへ行き、朝早く起きて山の上まで歩いて登ると、雲の海がきれいに広がっていた。"],
+  ["電","停","発","車","話","旅行中に写真や動画をたくさん撮っていたら、スマホの充電が残り少なくなってしまい、あわてて店を探した。"],
+  ["金","料","税","曜","魚","お正月に親戚からもらったお年玉は、すぐには使わずに、ほしいゲームを買うため貯金箱に大切に入れた。"],
+  ["時","同","当","間","計","駅で待ち合わせをしていたのに、寝坊してしまい約束の時刻に十分も遅れて、友だちに何度も謝った。"],
+  ["人","名","美","気","形","お祭りの日の神社はたくさんの人でにぎわっていて、はぐれた妹を見つけるまでずいぶん時間がかかった。"],
+  ["生","先","学","活","命","今日はぼくの誕生日なので、夕ごはんのあとに家族みんなで歌を歌い、ろうそくを吹き消してケーキを食べた。"],
+  ["力","体","協","士","学","運動会の綱引きでは、クラス全員で声を合わせ、最後まであきらめずに力いっぱい綱を引いて勝つことができた。"],
+  ["光","日","観","線","景","夜の海辺を散歩していると、雲の切れ間からまんまるの月が顔を出し、その光が波をきらきらと照らしていた。"],
+  ["雪","大","新","景","国","朝起きるとまわりが一面真っ白になっていたので、弟と二人で庭に出て大きな雪だるまを作って遊んだ。"],
+  ["道","歩","柔","具","路","学校からの帰り道、いつもの公園の角を曲がったところで、しっぽの長い茶色の猫がのんびり昼寝をしていた。"],
+  ["食","給","和","事","堂","寒い日の夕ごはんは家族みんなで鍋を囲み、食後には熱いお茶を飲みながら今日あったことを話し合った。"],
+  ["音","発","足","楽","色","夜中にふと目が覚めると、台所のほうから小さな音が聞こえ、こわごわのぞくと猫がいたずらをしていた。"],
+  ["体","全","身","育","重","朝早く起きて近所の公園でラジオ体操をすると、体がぽかぽかと温まってきて、一日を元気に始められる。"],
+  ["口","入","出","調","紅","歯医者さんで口を大きく開けるように言われ、虫歯がないか一本ずつ調べてもらい、ほめられてうれしかった。"],
+  ["気","元","天","分","温","都会をはなれて高原に出かけると、空気がすんでいておいしく、深呼吸をするたびに心まで軽くなるようだ。"],
+  ["白","空","紅","鳥","紙","給食の時間にカレーを食べていたら、うっかりスプーンからこぼしてしまい、白いシャツに黄色いしみができた。"],
+  ["動","運","行","物","画","夜中に地震があって本棚が少し動き、目覚まし時計が床に落ちたけれど、家族はみんな無事で安心した。"],
+  ["月","正","満","見","曜","十五夜の晩、縁側にすすきとお団子をかざって、雲ひとつない夜空にうかぶまんまるの月を家族でながめた。"],
+  ["火","花","放","山","事","秋の休みの日、庭に落ち葉を集めてたき火をし、アルミホイルで包んださつまいもをじっくり焼いて食べた。"],
+  ["外","海","郊","国","見","せっかくの休み時間なのに朝から強い雨が降り続いていて、外で遊べないのでみんなで教室でトランプをした。"],
+  ["地","土","天","図","球","博多駅から地下鉄に乗って天神まで行き、デパートで買い物をしたあと、屋台でラーメンを食べて帰った。"],
+  ["星","火","流","空","座","日がしずんで西の空が暗くなってくると、まだ明るさの残る空にひとつだけ光る一番星を見つけて指さした。"],
+  ["田","水","油","舎","畑","夏の夕方、おばあちゃんの家の近くを歩くと、田んぼのほうからカエルの鳴き声がにぎやかに聞こえてきた。"],
+  ["海","航","深","岸","辺","夏休みには毎年、家族で車に乗っておじいちゃんの住む町へ行き、近くの海で日が暮れるまで泳いで遊ぶ。"],
+  ["木","植","大","材","綿","日差しの強い夏の公園で、大きく枝を広げた木の下に入ると、ひんやりとして気持ちがよく、つい昼寝をした。"],
+  ["名","有","氏","刺","字","新しいクラスになった初日、先生に名前を呼ばれて大きな声で返事をしたら、みんながこちらをふり向いた。"],
+  ["中","夢","途","心","止","誕生日の朝、まくらもとにリボンのついた箱が置いてあり、ドキドキしながら開けると中に腕時計が入っていた。"],
+  ["石","宝","化","油","炭","夏休みに家族で川へ遊びに行き、川原を歩きながら、まるくてすべすべしたきれいな石をたくさん拾い集めた。"],
+  ["雨","大","梅","具","戸","公園で遊んでいたら急に空が暗くなり、ぽつぽつと雨が降ってきたので、あわてて持っていた傘を広げた。"],
+  ["茶","紅","緑","色","碗","日曜日の午後、おばあちゃんの家でこたつに入り、温かいお茶とみたらし団子をいただきながら昔話を聞いた。"],
+  ["書","読","辞","道","類","年の瀬が近づいてくると、毎年お世話になった人たちのことを思い出しながら、ていねいに年賀状を書いている。"],
+  ["家","作","画","族","具","長い出張から久しぶりに家に帰ると、子どもたちが玄関まで走って出むかえてくれて、心からほっとした。"],
+  ["目","注","科","標","次","日曜日の朝、目覚まし時計をかけずにぐっすり眠っていたら、目が覚めたときにはもうお昼近くになっていた。"],
+  ["番","交","当","組","号","人気のパン屋さんの前には朝から長い行列ができていて、店員さんに順番に並んでくださいと声をかけられた。"],
+  ["色","景","顔","紙","彩","秋が深まると近くの山の木の葉が赤や黄色に色づきはじめ、週末にはたくさんの人が紅葉を見に出かける。"],
+  ["馬","競","乗","車","力","牧場へ遠足に出かけ、やさしい顔をした茶色の馬に、持ってきたニンジンを手のひらにのせて食べさせてあげた。"],
+  ["王","女","国","様","子","トランプのカードには絵札があり、キングは王さま、クイーンはお妃さま、ジャックは騎士をあらわしている。"],
+  ["平","公","水","和","野","川ぞいのサイクリングロードは坂がなく平らな道がずっと続いているので、自転車で走るととても気持ちいい。"],
+  ["夜","今","深","景","空","昼間は雲が多かったけれど、夜になるとすっかり晴れて、ベランダから見上げた空にたくさんの星がかがやいた。"],
+  ["足","遠","満","音","跡","運動会のリレーでは、クラスで一番足が速い子がアンカーに選ばれ、最後に二人をぬいてゴールテープを切った。"],
+  ["意","注","用","見","外","国語の授業で読んだ物語に知らない言葉がいくつも出てきたので、家に帰ってから辞書で意味を調べてみた。"]
+];
+
+const LIMIT = 60;
+const $ = id => document.getElementById(id);
+let deck = [], idx = 0, score = 0, left = LIMIT, tick = null, log = [];
+let state = "play"; // play | answering | done
+
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function show(id){ ["start","game","result"].forEach(s => $(s).classList.toggle("hidden", s !== id)); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function setMsg(cls, html){ const m = $("msg"); m.className = "msg " + cls; m.innerHTML = html; }
+
+function startGame(n){
+  deck = shuffle(Q).slice(0, n);
+  idx = 0; score = 0; log = [];
+  $("qTotal").textContent = deck.length;
+  show("game");
+  loadQ();
+}
+
+function loadQ(){
+  const q = deck[idx];
+  $("qNo").textContent = idx + 1;
+  $("score").textContent = score;
+  $("cTop").textContent = q[1]; $("cLeft").textContent = q[2];
+  $("cRight").textContent = q[3]; $("cBottom").textContent = q[4];
+  const c = $("cCenter"); c.textContent = "？"; c.className = "cell c";
+  $("readHelp").textContent = `${q[1]}□・${q[2]}□・□${q[3]}・□${q[4]}`;
+  setMsg("info", "ひらめいたら「わかった」を押そう！");
+  ["btnHint","btnKnow","btnAns"].forEach(b => $(b).disabled = false);
+  $("btns").classList.remove("hidden");
+  $("answerBox").classList.add("hidden");
+  $("btnNext").classList.add("hidden");
+  $("ansInput").value = "";
+  state = "play";
+  left = LIMIT; drawTimer(); startTimer();
+}
+
+function startTimer(){
+  stopTimer();
+  tick = setInterval(() => {
+    left--; drawTimer();
+    if(left <= 0) timeUp();
+  }, 1000);
+}
+function stopTimer(){ if(tick){ clearInterval(tick); tick = null; } }
+function drawTimer(){
+  const warn = left <= 10;
+  $("timer").textContent = left;
+  $("timer").classList.toggle("warn", warn);
+  $("barFill").style.width = (left / LIMIT * 100) + "%";
+  $("barFill").classList.toggle("warn", warn);
+}
+
+function wordsHtml(q){
+  const a = `<span class="hl">${q[0]}</span>`;
+  return `<span class="words">${q[1]}${a}・${q[2]}${a}・${a}${q[3]}・${a}${q[4]}</span>`;
+}
+
+function reveal(cls, head, ok){
+  stopTimer();
+  state = "done";
+  const q = deck[idx];
+  const c = $("cCenter"); c.textContent = q[0]; c.className = "cell c open";
+  setMsg(cls, head + wordsHtml(q));
+  $("btns").classList.add("hidden");
+  $("answerBox").classList.add("hidden");
+  $("ansInput").blur();
+  $("btnNext").textContent = idx + 1 < deck.length ? "次の問題へ" : "結果を見る";
+  $("btnNext").classList.remove("hidden");
+  log.push({q, ok});
+}
+
+function timeUp(){
+  if(state === "done") return;
+  reveal("info", "⏰ 時間切れ！ 答えは「" + deck[idx][0] + "」でした。", false);
+}
+
+// ヒント：正解の字を含む短い文
+$("btnHint").onclick = () => {
+  if(state !== "play") return;
+  setMsg("hint", "💡 ヒント（正解の漢字が含まれています）<br>" + esc(deck[idx][5]));
+  $("btnHint").disabled = true;
+};
+
+// わかった：回答を求める（考え中はタイマー停止）
+$("btnKnow").onclick = () => {
+  if(state !== "play") return;
+  state = "answering";
+  stopTimer();
+  setMsg("ask", "✋ では答えをどうぞ！<br>真ん中に入る漢字を入力してね。");
+  $("btns").classList.add("hidden");
+  $("answerBox").classList.remove("hidden");
+  setTimeout(() => $("ansInput").focus(), 50);
+};
+
+function checkAnswer(){
+  if(state !== "answering") return;
+  const v = $("ansInput").value.trim();
+  if(!v) return;
+  if(v === deck[idx][0]){
+    score++;
+    $("score").textContent = score;
+    reveal("ok", "🎉 正解！ お見事！", true);
+  }else{
+    const c = $("cCenter"); c.classList.add("ng");
+    setMsg("ask", "😣 「" + esc(v) + "」はちがうよ…<br>もう一度考えてみよう！");
+    setTimeout(() => c.classList.remove("ng"), 600);
+    $("ansInput").value = "";
+    state = "play";
+    $("answerBox").classList.add("hidden");
+    $("btns").classList.remove("hidden");
+    $("ansInput").blur();
+    $("btnHint").disabled = false;
+    startTimer();
+  }
+}
+$("btnCheck").onclick = checkAnswer;
+
+// 戻る：回答をやめて考え直す（タイマー再開）
+$("btnBack").onclick = () => {
+  if(state !== "answering") return;
+  state = "play";
+  $("ansInput").value = "";
+  $("ansInput").blur();
+  $("answerBox").classList.add("hidden");
+  $("btns").classList.remove("hidden");
+  setMsg("info", "考え直し中…ひらめいたら「わかった」を押そう！");
+  $("btnHint").disabled = false;
+  startTimer();
+};
+$("ansInput").addEventListener("keydown", e => { if(e.key === "Enter" && !e.isComposing) checkAnswer(); });
+
+// 正解：答えを表示
+$("btnAns").onclick = () => {
+  if(state !== "play") return;
+  reveal("info", "答えは「" + deck[idx][0] + "」でした。", false);
+};
+
+$("btnNext").onclick = () => {
+  idx++;
+  if(idx < deck.length) loadQ(); else showResult();
+};
+
+function showResult(){
+  stopTimer();
+  show("result");
+  const n = deck.length, r = score / n;
+  $("resScore").innerHTML = score + "<small> / " + n + "</small>";
+  $("resRank").textContent =
+    r === 1 ? "👑 パーフェクト！ 漢字名人！" :
+    r >= .8 ? "🌟 すばらしい！ 漢字の達人" :
+    r >= .5 ? "👍 なかなかの腕前！" :
+    r >= .3 ? "🙂 もう少し！ ヒントを活用しよう" : "📚 次はきっといける！";
+  $("resList").innerHTML = log.map((l, i) =>
+    `<div><span class="${l.ok ? "o" : "x"}">${l.ok ? "○" : "×"}</span> ${i+1}. 答え「<b>${l.q[0]}</b>」 ${l.q[1]}${l.q[0]}・${l.q[2]}${l.q[0]}・${l.q[0]}${l.q[3]}・${l.q[0]}${l.q[4]}</div>`
+  ).join("");
+}
+
+document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => startGame(+b.dataset.n));
+$("btnRetry").onclick = () => show("start");
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden && state === "play") stopTimer();
+  else if(!document.hidden && state === "play" && !tick && !$("game").classList.contains("hidden")) startTimer();
+});
+</script>
+</body>
+</html>
