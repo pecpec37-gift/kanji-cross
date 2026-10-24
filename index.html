@@ -81,6 +81,25 @@
   .rank{text-align:center;font-size:17px;margin:4px 0 16px}
   .list{font-size:14px;line-height:1.9;max-height:260px;overflow:auto;border-top:1px solid var(--line);padding-top:8px;margin-bottom:12px}
   .list .o{color:var(--accent);font-weight:bold}.list .x{color:var(--accent2);font-weight:bold}
+  /* 正解演出 */
+  .celebrate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:rgba(20,50,35,.55);overflow:hidden}
+  .cbox{position:relative;z-index:2;background:#fff;border-radius:22px;padding:22px 34px 20px;text-align:center;
+    box-shadow:0 10px 40px rgba(0,0,0,.3);animation:boing .6s cubic-bezier(.2,1.6,.4,1)}
+  .ct{font-size:40px;font-weight:900;color:var(--accent2);letter-spacing:.1em;
+    text-shadow:2px 2px 0 #ffe08a}
+  .ck{width:120px;height:120px;margin:10px auto;border-radius:50%;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:bold;
+    font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+    box-shadow:0 0 0 6px #ffe08a, 0 0 30px 10px rgba(255,210,80,.8);animation:glow 1s ease-in-out infinite alternate}
+  .cp{font-size:30px;font-weight:900;color:var(--accent)}
+  .cs{font-size:12px;color:var(--sub);margin-top:6px}
+  @keyframes boing{0%{transform:scale(.2) rotate(-12deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes glow{to{box-shadow:0 0 0 6px #ffd24d, 0 0 50px 20px rgba(255,210,80,1)}}
+  .confetti{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;z-index:1;
+    animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
   .foot{text-align:center;color:var(--sub);font-size:11px;margin-top:18px}
 </style>
 </head>
@@ -95,7 +114,8 @@
     <p class="rule">
       真ん中の□に漢字を1文字入れて、4つの二字熟語を完成させよう。<br>
       上の字と左の字は「□の前」、右の字と下の字は「□の後ろ」に付きます。<br>
-      制限時間は<b>1問60秒</b>。
+      制限時間は<b>1問60秒</b>。ヒントを見ている間も、答えを入力している間も時間は減っていきます。<br>
+      正解したときの<b>残り秒数がそのまま得点</b>！ランダムに出る5問で最高300点をめざそう。
     </p>
     <div class="mini">
       <div></div><div class="k">大</div><div></div>
@@ -105,18 +125,14 @@
     <p class="rule" style="font-size:13px;color:var(--sub);text-align:center;margin-top:-6px">
       例：大□・化□・□校・□生 → 答えは「学」
     </p>
-    <div class="modes">
-      <button class="b-main" data-n="10">10問</button>
-      <button class="b-main" data-n="20">20問</button>
-      <button class="b-main" data-n="50">全50問</button>
-    </div>
+    <button class="b-main" style="width:100%" id="btnStart">スタート（5問）</button>
   </section>
 
   <!-- ゲーム画面 -->
   <section id="game" class="card hidden">
     <div class="status">
       <span>第<b id="qNo">1</b>問 / <span id="qTotal">10</span></span>
-      <span>正解 <b id="score">0</b></span>
+      <span>スコア <b id="score">0</b>点</span>
       <span class="timer" id="timer">60</span>
     </div>
     <div class="bar"><i id="barFill"></i></div>
@@ -152,6 +168,15 @@
     <div class="list" id="resList"></div>
     <button class="b-main" style="width:100%" id="btnRetry">もう一度あそぶ</button>
   </section>
+
+  <div class="celebrate hidden" id="celebrate">
+    <div class="cbox">
+      <div class="ct">正解！</div>
+      <div class="ck" id="celKanji"></div>
+      <div class="cp" id="celPts"></div>
+      <div class="cs">タップで次へ</div>
+    </div>
+  </div>
 
   <p class="foot">© TomTom TOWNS</p>
 </div>
@@ -213,6 +238,8 @@ const Q = [
 
 const LIMIT = 60;
 const $ = id => document.getElementById(id);
+const COUNT = 5;
+let correct = 0, celTimer = null;
 let deck = [], idx = 0, score = 0, left = LIMIT, tick = null, log = [];
 let state = "play"; // play | answering | done
 
@@ -224,7 +251,7 @@ function setMsg(cls, html){ const m = $("msg"); m.className = "msg " + cls; m.in
 
 function startGame(n){
   deck = shuffle(Q).slice(0, n);
-  idx = 0; score = 0; log = [];
+  idx = 0; score = 0; correct = 0; log = [];
   $("qTotal").textContent = deck.length;
   show("game");
   loadQ();
@@ -252,7 +279,7 @@ function startTimer(){
   stopTimer();
   tick = setInterval(() => {
     left--; drawTimer();
-    if(left <= 0) timeUp();
+    if(left <= 0){ left = 0; drawTimer(); timeUp(); }
   }, 1000);
 }
 function stopTimer(){ if(tick){ clearInterval(tick); tick = null; } }
@@ -269,7 +296,7 @@ function wordsHtml(q){
   return `<span class="words">${q[1]}${a}・${q[2]}${a}・${a}${q[3]}・${a}${q[4]}</span>`;
 }
 
-function reveal(cls, head, ok){
+function reveal(cls, head, ok, pts = 0){
   stopTimer();
   state = "done";
   const q = deck[idx];
@@ -280,7 +307,7 @@ function reveal(cls, head, ok){
   $("ansInput").blur();
   $("btnNext").textContent = idx + 1 < deck.length ? "次の問題へ" : "結果を見る";
   $("btnNext").classList.remove("hidden");
-  log.push({q, ok});
+  log.push({q, ok, pts});
 }
 
 function timeUp(){
@@ -299,8 +326,7 @@ $("btnHint").onclick = () => {
 $("btnKnow").onclick = () => {
   if(state !== "play") return;
   state = "answering";
-  stopTimer();
-  setMsg("ask", "✋ では答えをどうぞ！<br>真ん中に入る漢字を入力してね。");
+  setMsg("ask", "✋ では答えをどうぞ！<br>真ん中に入る漢字を入力してね。（時間は進んでいます）");
   $("btns").classList.add("hidden");
   $("answerBox").classList.remove("hidden");
   setTimeout(() => $("ansInput").focus(), 50);
@@ -311,9 +337,11 @@ function checkAnswer(){
   const v = $("ansInput").value.trim();
   if(!v) return;
   if(v === deck[idx][0]){
-    score++;
+    const pts = left;
+    score += pts; correct++;
     $("score").textContent = score;
-    reveal("ok", "🎉 正解！ お見事！", true);
+    reveal("ok", "🎉 正解！ <b>+" + pts + "点</b>", true, pts);
+    celebrate(deck[idx][0], pts);
   }else{
     const c = $("cCenter"); c.classList.add("ng");
     setMsg("ask", "😣 「" + esc(v) + "」はちがうよ…<br>もう一度考えてみよう！");
@@ -324,7 +352,6 @@ function checkAnswer(){
     $("btns").classList.remove("hidden");
     $("ansInput").blur();
     $("btnHint").disabled = false;
-    startTimer();
   }
 }
 $("btnCheck").onclick = checkAnswer;
@@ -339,7 +366,6 @@ $("btnBack").onclick = () => {
   $("btns").classList.remove("hidden");
   setMsg("info", "考え直し中…ひらめいたら「わかった」を押そう！");
   $("btnHint").disabled = false;
-  startTimer();
 };
 $("ansInput").addEventListener("keydown", e => { if(e.key === "Enter" && !e.isComposing) checkAnswer(); });
 
@@ -349,6 +375,28 @@ $("btnAns").onclick = () => {
   reveal("info", "答えは「" + deck[idx][0] + "」でした。", false);
 };
 
+function celebrate(k, pts){
+  const ov = $("celebrate");
+  $("celKanji").textContent = k;
+  $("celPts").textContent = "+" + pts + "点";
+  ov.querySelectorAll(".confetti").forEach(e => e.remove());
+  const colors = ["#ffd24d","#c2512f","#2f6b4f","#4aa3df","#e86fa3","#8fd16a"];
+  for(let i = 0; i < 40; i++){
+    const c = document.createElement("i");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "%";
+    c.style.background = colors[i % colors.length];
+    c.style.animationDuration = (1.4 + Math.random() * 1.4) + "s";
+    c.style.animationDelay = (Math.random() * .4) + "s";
+    ov.appendChild(c);
+  }
+  ov.classList.remove("hidden");
+  clearTimeout(celTimer);
+  celTimer = setTimeout(hideCelebrate, 2500);
+}
+function hideCelebrate(){ clearTimeout(celTimer); $("celebrate").classList.add("hidden"); }
+$("celebrate").onclick = hideCelebrate;
+
 $("btnNext").onclick = () => {
   idx++;
   if(idx < deck.length) loadQ(); else showResult();
@@ -356,24 +404,26 @@ $("btnNext").onclick = () => {
 
 function showResult(){
   stopTimer();
+  hideCelebrate();
   show("result");
-  const n = deck.length, r = score / n;
-  $("resScore").innerHTML = score + "<small> / " + n + "</small>";
-  $("resRank").textContent =
-    r === 1 ? "👑 パーフェクト！ 漢字名人！" :
-    r >= .8 ? "🌟 すばらしい！ 漢字の達人" :
-    r >= .5 ? "👍 なかなかの腕前！" :
-    r >= .3 ? "🙂 もう少し！ ヒントを活用しよう" : "📚 次はきっといける！";
+  const n = deck.length;
+  $("resScore").innerHTML = score + "<small> 点</small>";
+  $("resRank").innerHTML = "正解 " + correct + " / " + n + " 問<br>" + (
+    score >= 250 ? "👑 漢字名人！ 電光石火の速さ！" :
+    score >= 180 ? "🌟 すばらしい！ 漢字の達人" :
+    score >= 100 ? "👍 なかなかの腕前！" :
+    score >= 40  ? "🙂 もう少し！ スピードアップをめざそう" : "📚 次はきっといける！");
   $("resList").innerHTML = log.map((l, i) =>
-    `<div><span class="${l.ok ? "o" : "x"}">${l.ok ? "○" : "×"}</span> ${i+1}. 答え「<b>${l.q[0]}</b>」 ${l.q[1]}${l.q[0]}・${l.q[2]}${l.q[0]}・${l.q[0]}${l.q[3]}・${l.q[0]}${l.q[4]}</div>`
+    `<div><span class="${l.ok ? "o" : "x"}">${l.ok ? "○" : "×"}</span> ${i+1}. 答え「<b>${l.q[0]}</b>」 ${l.q[1]}${l.q[0]}・${l.q[2]}${l.q[0]}・${l.q[0]}${l.q[3]}・${l.q[0]}${l.q[4]}${l.ok ? ` <b>+${l.pts}</b>` : ""}</div>`
   ).join("");
 }
 
-document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => startGame(+b.dataset.n));
+$("btnStart").onclick = () => startGame(COUNT);
 $("btnRetry").onclick = () => show("start");
 document.addEventListener("visibilitychange", () => {
-  if(document.hidden && state === "play") stopTimer();
-  else if(!document.hidden && state === "play" && !tick && !$("game").classList.contains("hidden")) startTimer();
+  const active = state === "play" || state === "answering";
+  if(document.hidden && active) stopTimer();
+  else if(!document.hidden && active && !tick && !$("game").classList.contains("hidden")) startTimer();
 });
 </script>
 </body>
